@@ -9,6 +9,11 @@ A Python client for using the [Hydra NFC v1/v2](https://hydrabus.com/) as a low 
      - ISO 14443 A  & ISO 15693 card.
      - ISO 14443 B only for hydra NFC v2
 
+It also provides a **two-Proxmark3 ISO14443-A relay** tool (`pynfcreader-relay`),
+a host-side bridge for the Proxmark3 `HF_CARDHOPPER` standalone firmware — one
+Proxmark3 on the card (over USB), one on the reader (over Bluetooth). See
+[docs/relay-cardhopper.md](./docs/relay-cardhopper.md). *Authorized testing only.*
+
 ## Getting started
 
 ### Install from source
