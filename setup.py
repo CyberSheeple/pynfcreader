@@ -33,7 +33,17 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/gvinet/pynfcreader",
     packages=setuptools.find_packages(),
-    install_requires=['pyHydrabus'],
+    install_requires=['pyserial'],
+    extras_require={
+        # pyHydrabus is only needed for the HydraNFC v1 backend.
+        'hydranfc': ['pyHydrabus'],
+    },
+    entry_points={
+        'console_scripts': [
+            'pynfcreader-relay = pynfcreader.relay.cli:main',
+            'pynfcreader-relay-wsl = pynfcreader.relay.wsl:main',
+        ],
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
