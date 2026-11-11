@@ -91,8 +91,25 @@ sudo rfcomm bind /dev/rfcomm0 <pm3x-bt-mac> 1
 > MTools warns that generic-platform firmware does not support every command.
 > Verify the standalone build boots and pairs before relying on it.
 
-Each device enters CardHopper automatically on boot (standalone mode) and waits
-for the host to assign it a role.
+### Normal use vs. relay use (no reflash to switch)
+
+A `STANDALONE=HF_CARDHOPPER` build is a **complete, normal Iceman firmware** that
+*also* contains the CardHopper standalone mode — flashing it does **not** remove
+any normal functionality. So:
+
+- **Normal use:** connect the `pm3` client over USB as usual; all `hf`/`lf`
+  commands work. `hw status` lists `HF_CARDHOPPER` as the installed standalone
+  mode. No reflash is needed to use the device normally.
+- **Relay use:** enter the standalone mode by **holding the button for ~1 second**
+  (the device shows its LED pattern); the host bridge then drives it. Sending a
+  USB command / resetting the device returns it to normal operation.
+
+Only **one** standalone mode can be compiled per image (unless you use
+DANKARMULTI), so you would only reflash to swap CardHopper for a *different*
+standalone mode — not to return to normal client use. Note: with
+`-DCARDHOPPER_USB` the mode uses the USB link, so a USB device cannot be in
+CardHopper mode and attached to the `pm3` client at the same time; the Bluetooth
+device relays over BT and leaves its USB free.
 
 ## Install
 
@@ -127,10 +144,13 @@ pynfcreader-relay --card-port /dev/ttyACM0 --reader-port /dev/rfcomm0
 
 Operational order:
 
-1. Start the command. The **leech** enters reader mode and waits for a card.
-2. Present the target card to the leech — it reports the UID and ATS.
-3. The **ghost** is configured with that identity and starts emulating.
-4. Present the ghost to the target reader; the session is relayed live. A decoded
+1. Put **each** Proxmark3 into CardHopper mode first: hold its button for ~1
+   second until the standalone LED pattern shows. (The host bridge talks to a
+   device only once it is in this mode.)
+2. Start the command. The **leech** enters reader mode and waits for a card.
+3. Present the target card to the leech — it reports the UID and ATS.
+4. The **ghost** is configured with that identity and starts emulating.
+5. Present the ghost to the target reader; the session is relayed live. A decoded
    frame trace is printed. `Ctrl-C` to stop.
 
 Options:
