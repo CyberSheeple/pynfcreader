@@ -29,15 +29,18 @@ Android app.
 
 ## Hardware
 
-| Role  | Device                         | Link                       |
-|-------|--------------------------------|----------------------------|
-| Leech | Proxmark3 Easy (or any PM3)    | USB CDC (`/dev/ttyACM0`)   |
-| Ghost | Proxmark3 **RDV4 + BlueShark** | Bluetooth (`/dev/rfcomm0`) |
+| Role  | Device                              | Link                       |
+|-------|-------------------------------------|----------------------------|
+| Leech | Proxmark3 Easy (or any PM3)         | USB CDC (`/dev/ttyACM0`)   |
+| Ghost | Proxmark3 X (built-in Bluetooth)    | Bluetooth (`/dev/rfcomm0`) |
 
-> A **Proxmark3 Easy has no Bluetooth hardware**. The Bluetooth end must be an
-> RDV4 with the BlueShark module (or a PM3 with an FPC/BT add-on). Either device
-> can be leech or ghost; the table above matches "1× USB + 1× Bluetooth". Both
-> ends can also run over USB if you prefer a fully wired bench setup.
+> The Bluetooth end needs a PM3 whose Bluetooth is a **classic-BT SPP serial
+> bridge** (the firmware's FPC/usart channel bridged to Bluetooth). The
+> **Proxmark3 X** (MTools) has one built in: it pairs with PIN `1234`, runs at
+> 115200 baud and exposes a serial port — functionally equivalent to an RDV4 +
+> BlueShark. A plain **Proxmark3 Easy has no Bluetooth**, so it is the USB end
+> here. Either device can be leech or ghost; both ends can also run over USB for a
+> fully wired bench. (An RDV4 + BlueShark works too — same firmware recipe below.)
 
 ## Firmware
 
@@ -63,19 +66,30 @@ make STANDALONE=HF_CARDHOPPER PLATFORM=PM3GENERIC -j
 > `-DCARDHOPPER_USB` the mode talks over USB instead; confirm the build succeeds
 > for your platform.
 
-**Bluetooth end** — standard BlueShark build (no `CARDHOPPER_USB`):
+**Bluetooth end (Proxmark3 X)** — BlueShark-style build over the BT/usart channel
+(no `CARDHOPPER_USB`). MTools builds the Proxmark3 X as `PLATFORM=PM3GENERIC` with
+the BT add-on, which is exactly what CardHopper's `STANDALONE_MODES_REQ_BT` path
+expects:
 
 ```bash
 make clean
-make STANDALONE=HF_CARDHOPPER PLATFORM=PM3RDV4 PLATFORM_EXTRAS=BTADDON -j
+make STANDALONE=HF_CARDHOPPER PLATFORM=PM3GENERIC PLATFORM_EXTRAS=BTADDON -j
 ./pm3-flash-fullimage
 ```
 
-Pair the BlueShark and bind an rfcomm device, e.g.:
+(An RDV4 + BlueShark uses the same recipe with `PLATFORM=PM3RDV4`.) Make sure the
+Proxmark3 X's "Blue Shark" BT switch is ON, pair it (PIN `1234`; the BT module runs
+at 115200 baud to match the BTADDON firmware), then bind an rfcomm device:
 
 ```bash
-sudo rfcomm bind /dev/rfcomm0 <blueshark-mac> 1
+sudo rfcomm bind /dev/rfcomm0 <pm3x-bt-mac> 1
 ```
+
+> **Caveat:** the Proxmark3 X is a generic-platform clone with a BlueShark-style
+> classic-BT SPP bridge, so this recipe should satisfy CardHopper — but running
+> `HF_CARDHOPPER` on a PM3 X specifically is not independently confirmed, and
+> MTools warns that generic-platform firmware does not support every command.
+> Verify the standalone build boots and pairs before relying on it.
 
 Each device enters CardHopper automatically on boot (standalone mode) and waits
 for the host to assign it a role.
