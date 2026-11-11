@@ -165,22 +165,21 @@ class FlipperZero(Devices):
         self.__logger.debug(f"set uid: {uid}")
         self.cnx.reset_input_buffer()
         self.cnx.reset_output_buffer()
-        self.cnx.write(b"nfc set_uid {uid}\r\n")
+        self.cnx.write(f"nfc set_uid {uid}\r\n".encode())
         r = self.read_all()
 
-    def set_sak(self, sak: int):
-        assert sak in range(256)
+    def set_sak(self, sak: str):
         self.__logger.debug(f"set sak: {sak}")
         self.cnx.reset_input_buffer()
         self.cnx.reset_output_buffer()
-        self.cnx.write(b"nfc set_sak {sak:02X}\r\n")
+        self.cnx.write(f"nfc set_sak {sak}\r\n".encode())
         r = self.read_all()
 
     def set_atqa(self, atqa: str):
         self.__logger.debug(f"set atqa: {atqa}")
         self.cnx.reset_input_buffer()
         self.cnx.reset_output_buffer()
-        self.cnx.write(b"nfc set_sak atqa\r\n")
+        self.cnx.write(f"nfc set_atqa {atqa}\r\n".encode())
         r = self.read_all()
 
     def write(self, data=b"", resp_len=None, transmitter_add_crc=True):
