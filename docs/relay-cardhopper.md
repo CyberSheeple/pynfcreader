@@ -100,6 +100,25 @@ for the host to assign it a role.
 pip install -e .          # from the repo root; pulls in pyserial
 ```
 
+## Make targets
+
+A `Makefile` wraps the whole workflow (`make help` lists everything):
+
+```bash
+make dev                              # editable install + test tooling
+make test                             # relay unit tests (no hardware)
+make build END=usb PM3_DIR=../proxmark3   # build HF_CARDHOPPER firmware (usb|bt)
+make flash FLASH_PORT=/dev/ttyACM0    # flash the built image (over USB)
+make wsl-attach                       # (WSL) usbipd bind+attach the USB Proxmark3
+make list-devices                     # show Proxmark3 ports + USB serials
+make start CARD_PORT=/dev/ttyACM0 READER_PORT=/dev/rfcomm0   # run in background
+make status / make stop               # manage the background relay
+```
+
+Firmware targets need a RfidResearchGroup/proxmark3 checkout (`PM3_DIR`) and the
+`arm-none-eabi` toolchain; they write `PM3_DIR/Makefile.platform` (backing up any
+existing one) with the correct platform config for each end.
+
 ## Usage
 
 ```bash
