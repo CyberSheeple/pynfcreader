@@ -33,7 +33,12 @@ from pynfcreader.relay.cardhopper import (
     CardhopperError,
     CardhopperLink,
     CardhopperRelay,
-    SerialTransport,
+    open_transport,
+)
+from pynfcreader.relay.detect import (
+    RoleResolutionError,
+    list_proxmark_ports,
+    resolve_roles,
 )
 
 
@@ -44,16 +49,27 @@ def build_parser() -> argparse.ArgumentParser:
         "running the HF_CARDHOPPER standalone firmware. Authorized testing only.",
     )
     parser.add_argument(
+        "--list-devices",
+        action="store_true",
+        help="list detected Proxmark3 USB ports (with serials) and exit",
+    )
+    parser.add_argument(
         "--card-port",
-        required=True,
-        help="serial port of the Proxmark3 next to the real CARD (leech / reader mode), "
-        "e.g. /dev/ttyACM0",
+        help="serial port (or tcp:HOST:PORT) of the Proxmark3 next to the real CARD "
+        "(leech / reader mode), e.g. /dev/ttyACM0. Auto-detected if omitted.",
     )
     parser.add_argument(
         "--reader-port",
-        required=True,
-        help="serial port of the Proxmark3 next to the real READER (ghost / card mode), "
-        "e.g. /dev/rfcomm0",
+        help="serial port (or tcp:HOST:PORT) of the Proxmark3 next to the real READER "
+        "(ghost / card mode), e.g. /dev/rfcomm0 or tcp:172.20.0.1:5555",
+    )
+    parser.add_argument(
+        "--card-serial",
+        help="pick the CARD-side Proxmark3 by its USB serial number (stable across reboots)",
+    )
+    parser.add_argument(
+        "--reader-serial",
+        help="pick the READER-side Proxmark3 by its USB serial number",
     )
     parser.add_argument("--baud", type=int, default=115200, help="serial baudrate (default 115200)")
     parser.add_argument(
@@ -93,19 +109,45 @@ def main(argv=None) -> int:
         format="%(message)s",
     )
 
+    if args.list_devices:
+        ports = list_proxmark_ports()
+        if not ports:
+            print("No Proxmark3 USB serial ports detected.")
+            print("On WSL, attach them first: pynfcreader-relay-wsl")
+            return 1
+        print("Detected Proxmark3 USB ports:")
+        for p in ports:
+            print(f"  {p.describe()}")
+        return 0
+
+    # Resolve which physical Proxmark3 is the card side (leech) and the reader
+    # side (ghost): explicit port > USB serial > auto-detect the lone USB device.
+    try:
+        card_spec, reader_spec = resolve_roles(
+            card_port=args.card_port,
+            reader_port=args.reader_port,
+            card_serial=args.card_serial,
+            reader_serial=args.reader_serial,
+        )
+    except RoleResolutionError as exc:
+        print(f"could not determine device roles: {exc}", file=sys.stderr)
+        return 2
+    print(f"card-side (leech):  {card_spec}")
+    print(f"reader-side (ghost): {reader_spec}")
+
     try:
         leech = CardhopperLink(
-            SerialTransport(args.card_port, baudrate=args.baud),
+            open_transport(card_spec, baudrate=args.baud),
             name="leech",
             ack_timeout=args.ack_timeout,
         )
         ghost = CardhopperLink(
-            SerialTransport(args.reader_port, baudrate=args.baud),
+            open_transport(reader_spec, baudrate=args.baud),
             name="ghost",
             ack_timeout=args.ack_timeout,
         )
-    except Exception as exc:  # noqa: BLE001 - surface any serial open failure cleanly
-        print(f"error opening serial ports: {exc}", file=sys.stderr)
+    except Exception as exc:  # noqa: BLE001 - surface any port open failure cleanly
+        print(f"error opening ports: {exc}", file=sys.stderr)
         return 2
 
     relay = CardhopperRelay(

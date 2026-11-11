@@ -41,6 +41,7 @@ setuptools.setup(
     entry_points={
         'console_scripts': [
             'pynfcreader-relay = pynfcreader.relay.cli:main',
+            'pynfcreader-relay-wsl = pynfcreader.relay.wsl:main',
         ],
     },
     classifiers=[

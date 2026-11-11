@@ -28,6 +28,8 @@ from pynfcreader.relay.cardhopper import (
     CardhopperLink,
     CardhopperRelay,
     SerialTransport,
+    TcpTransport,
+    open_transport,
 )
 
 __all__ = [
@@ -35,4 +37,6 @@ __all__ = [
     "CardhopperLink",
     "CardhopperRelay",
     "SerialTransport",
+    "TcpTransport",
+    "open_transport",
 ]

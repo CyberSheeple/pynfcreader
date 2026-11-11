@@ -116,6 +116,68 @@ class SerialTransport:
         self._serial.close()
 
 
+class TcpTransport:
+    """TCP :class:`Transport`.
+
+    Lets the host reach a Proxmark3 whose serial port lives on another machine,
+    bridged over TCP -- e.g. a Bluetooth-paired Proxmark3 X whose Windows COM port
+    is exposed to WSL over TCP (``usbipd`` only forwards USB devices, not a
+    Bluetooth SPP COM port). ``timeout`` is the per-read poll timeout.
+    """
+
+    def __init__(self, host: str, port: int, timeout: float = 0.2):
+        import socket
+
+        self.host = host
+        self.port = port
+        self._sock = socket.create_connection((host, port))
+        self._sock.settimeout(timeout)
+
+    def read(self, n: int) -> bytes:
+        import socket
+
+        try:
+            data = self._sock.recv(n)
+        except socket.timeout:
+            return b""
+        if not data:
+            raise CardhopperError(f"tcp connection to {self.host}:{self.port} closed")
+        return data
+
+    def write(self, data: bytes) -> None:
+        self._sock.sendall(data)
+
+    def close(self) -> None:
+        self._sock.close()
+
+
+def parse_transport_spec(spec: str):
+    """Parse a port spec into ``("tcp", host, port)`` or ``("serial", path, None)``.
+
+    ``tcp:HOST:PORT`` (or ``tcp://HOST:PORT``) selects a :class:`TcpTransport`;
+    anything else is treated as a serial device path.
+    """
+    low = spec.strip()
+    if low.startswith("tcp://"):
+        low = low[len("tcp://"):]
+    elif low.startswith("tcp:"):
+        low = low[len("tcp:"):]
+    else:
+        return ("serial", spec, None)
+    host, sep, port = low.rpartition(":")
+    if not sep or not port.isdigit():
+        raise CardhopperError(f"invalid tcp spec '{spec}', expected tcp:HOST:PORT")
+    return ("tcp", host, int(port))
+
+
+def open_transport(spec: str, baudrate: int = 115200) -> Transport:
+    """Open a :class:`Transport` from a port spec (serial path or ``tcp:HOST:PORT``)."""
+    kind, a, b = parse_transport_spec(spec)
+    if kind == "tcp":
+        return TcpTransport(a, b)
+    return SerialTransport(a, baudrate=baudrate)
+
+
 class CardhopperLink:
     """One serial link to a Proxmark3 running ``HF_CARDHOPPER``.
 

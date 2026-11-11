@@ -127,6 +127,71 @@ Options:
 | `--ack-timeout`  | 2.0     | seconds to wait for a Proxmark3 ACK                            |
 | `-v`             | —       | debug logging                                                  |
 
+## WSL2 (Windows) setup
+
+WSL2 has no USB or Bluetooth stack of its own, so the two links are handled
+differently.
+
+### USB Proxmark3 (the Easy) — `usbipd`
+
+Forward the USB device into WSL with [`usbipd-win`](https://github.com/dorssel/usbipd-win)
+(install it on Windows). The repo ships a helper that calls `usbipd.exe` for you
+from inside WSL:
+
+```bash
+pynfcreader-relay-wsl --list     # show Proxmark3 USB devices usbipd can see
+pynfcreader-relay-wsl --bind     # bind (first time, needs admin) + attach + wait for /dev/ttyACM*
+```
+
+`--bind` shares the device, which requires admin **once**; use `--elevate` to pop
+a UAC prompt, or run `usbipd bind --busid <id>` yourself in an elevated Windows
+shell and then `pynfcreader-relay-wsl` (attach needs no admin). After attach the
+device shows up as `/dev/ttyACM0` in WSL.
+
+### Bluetooth Proxmark3 (the X) — TCP bridge, *not* usbipd
+
+`usbipd` forwards **USB** devices only. A Bluetooth-paired Proxmark3 X is a
+Windows **COM port**, not a USB device, and WSL2 cannot map Windows COM ports to
+`/dev/ttyS*`. Two options:
+
+1. **Simplest:** attach the Proxmark3 X over **USB** as well (with
+   `pynfcreader-relay-wsl`) and run both ends over USB on the bench. You lose the
+   wireless reach but the setup is trivial.
+2. **Keep it wireless:** pair the X on Windows (PIN `1234`) to get its COM port,
+   then bridge that COM port to TCP on Windows and point the relay at it. For
+   example with [`com0com`/`com2tcp`](https://sourceforge.net/projects/com0com/)
+   or a one-liner Python bridge on Windows exposing `COM5` on TCP `5555`, then:
+
+   ```bash
+   pynfcreader-relay --card-port /dev/ttyACM0 --reader-port tcp:<windows-ip>:5555
+   ```
+
+   The relay's `tcp:HOST:PORT` transport speaks the same packet protocol over the
+   socket.
+
+### Telling the two Proxmark3s apart
+
+Software cannot know which device is physically on the card vs the reader — that
+is placement. It *can* identify the Proxmark3 ports and their stable USB serials:
+
+```bash
+pynfcreader-relay --list-devices
+```
+
+Then pin each role by serial (stable across reboots) or by port:
+
+```bash
+# by USB serial
+pynfcreader-relay --card-serial <serialA> --reader-serial <serialB>
+# by port (Bluetooth/TCP reader + auto-detected lone USB card)
+pynfcreader-relay --reader-port tcp:<windows-ip>:5555
+```
+
+In the common "1 USB + 1 Bluetooth/TCP" layout you only need to give the
+Bluetooth/TCP side; the single USB Proxmark3 is auto-assigned to the other role.
+With two USB devices you must pin them (by serial or port) so the card/reader
+roles are never guessed wrong.
+
 ## How it works
 
 The firmware (`armsrc/Standalone/hf_cardhopper.c`) handles all low-level 14a
